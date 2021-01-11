@@ -4,6 +4,7 @@ module Tasks where
   import Data.Time.Clock
   import Data.Time.Format
   import System.Locale
+  import Data.Functor
 
   lenVec3 x y z = sqrt (x ^ 2 + y ^ 2 + z ^ 2)
 
@@ -285,3 +286,93 @@ module Tasks where
 
   updateLastName :: Person -> Person -> Person
   updateLastName person1 person2 = person2 { lastName = lastName person1 }
+
+  abbrFirstName :: Person -> Person
+  abbrFirstName p = p { firstName = let
+   name  = firstName p
+   in (if 2 > length name then name else name !! 0 : "." ) }
+
+  data Coord a = Coord a a
+
+  distance' :: Coord Double -> Coord Double -> Double
+  distance' (Coord x1 y1) (Coord x2 y2) = sqrt((x2 - x1)^2 + (y2 - y1)^2)
+
+  manhDistance' :: Coord Int -> Coord Int -> Int
+  manhDistance' (Coord x1 y1) (Coord x2 y2) = abs(x2 - x1) + abs(y2 - y1)
+
+  findDigit :: [Char] -> Maybe Char
+  findDigit x = let
+    digit = dropWhile (not . isDigit) x
+    in (if (length digit == 0) then Nothing else Just (head digit))
+
+  findDigitOrX :: [Char] -> Char
+  findDigitOrX s = case findDigit s of
+    Nothing -> 'X'
+    Just x -> x
+
+  maybeToList :: Maybe a -> [a]
+  maybeToList (Nothing) = []
+  maybeToList (Just x)  = [x]
+
+  listToMaybe :: [a] -> Maybe a
+  listToMaybe [] = Nothing
+  listToMaybe xs = Just (head xs)
+
+  eitherToMaybe :: Either a b -> Maybe a
+  eitherToMaybe (Left a) = Just a
+  eitherToMaybe (Right _) = Nothing
+
+  data List a = Nil | Cons a (List a)
+
+  fromList :: List a -> [a]
+  fromList Nil = []
+  fromList (Cons x y) = x : fromList(y)
+
+
+  toList :: [a] -> List a
+  toList [] = Nil
+  toList (x:xs) = Cons x (toList xs)
+
+  data Nat = Zero | Suc Nat deriving Show
+
+  fromNat :: Nat -> Integer
+  fromNat Zero = 0
+  fromNat (Suc n) = fromNat n + 1
+
+  add :: Nat -> Nat -> Nat
+  add Zero n  = n
+  add n Zero  = n
+  add (Suc x) y = add x (Suc y)
+
+  mul :: Nat -> Nat -> Nat
+  mul Zero _  = Zero
+  mul _ Zero  = Zero
+  mul x y     = mulInner x y Zero where
+    mulInner Zero n acc   = acc
+    mulInner n Zero acc   = acc
+    mulInner (Suc x) y acc      = mulInner x y (add acc y)
+
+  fac :: Nat -> Nat
+  fac x       = innerFac x (Suc Zero) where
+    innerFac Zero acc       = acc
+    innerFac (Suc x) acc    = innerFac x (mul (Suc x) acc)
+
+  data Point3D a = Point3D a a a deriving Show
+
+  instance Functor Point3D where
+      fmap f (Point3D a b c) = Point3D (f a) (f b) (f c)
+
+  data Tree a = Leaf (Maybe a) | Branch (Tree a) (Maybe a) (Tree a) deriving Show
+
+  instance Functor Tree where
+      fmap f (Leaf a)       = Leaf (f <$> a)
+      fmap f (Branch l x r) = Branch (f <$> l) (f <$> x) (f <$> r)
+
+  data Entry k1 k2 v = Entry (k1, k2) v  deriving Show
+  data Map k1 k2 v = Map [Entry k1 k2 v]  deriving Show
+
+  instance Functor (Entry k1 k2) where
+      fmap f (Entry y x) = Entry y (f x)
+
+  instance Functor (Map k1 k2) where
+      fmap f (Map x) = Map (map (fmap f) x)
