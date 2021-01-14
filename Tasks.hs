@@ -376,3 +376,59 @@ module Tasks where
 
   instance Functor (Map k1 k2) where
       fmap f (Map x) = Map (map (fmap f) x)
+
+  data Log a = Log [String] a deriving Show
+  toLogger :: (a -> b) -> String -> (a -> Log b)
+  toLogger f msg y = Log [msg] (f y)
+
+  execLoggers :: a -> (a -> Log b) -> (b -> Log c) -> Log c
+  execLoggers x f g = case f x of
+    Log s y -> case g y of
+      Log l z -> Log (s ++ l) z
+
+  returnLog :: a -> Log a
+  returnLog x = Log [] x
+
+  bindLog :: Log a -> (a -> Log b) -> Log b
+  bindLog (Log s x) f = case f x of
+    Log l y -> Log (s ++ l) y
+
+  instance Monad Log where
+      return = returnLog
+      (>>=) = bindLog
+
+  execLoggersList :: a -> [a -> Log a] -> Log a
+  execLoggersList x fs              = let
+    initReturn                      = return x
+    innerExecLoggersList y []       = y
+    innerExecLoggersList y (f:fs')  = innerExecLoggersList (y >>= f) fs'
+    in (innerExecLoggersList initReturn fs)
+
+  data Token = Number Int | Plus | Minus | LeftBrace | RightBrace
+      deriving (Eq, Show)
+
+  asToken :: String -> Maybe Token
+  asToken "+" = Just Plus
+  asToken "-" = Just Minus
+  asToken "(" = Just LeftBrace
+  asToken ")" = Just RightBrace
+  asToken x | any (not . isDigit) x = Nothing
+            | otherwise             = let
+                                        parser [] acc dec     = acc
+                                        parser (t:ts) acc dec = parser ts (acc + (digitToInt t) * dec) (dec `div` 10)
+                                      in (Just $ Number $ parser x 0 (10^(length x - 1)))
+
+  tokenize :: String -> Maybe [Token]
+  tokenize s = sequence (map asToken (words s))
+
+  pythagoreanTriple :: Int -> [(Int, Int, Int)]
+  pythagoreanTriple x = [(a,b,c) | c <- [1..x], b <- [1..c], a <- [1..b], (a^2 + b^2) == c^2]
+
+  main' :: IO ()
+  main' = do
+    putStrLn "What is your name?"
+    putStr "Name: "
+    name <- getLine
+    if name == "" then main' else putStrLn $ "Hi, " ++ name ++ "!"
+
+
