@@ -3,8 +3,11 @@ module Tasks where
   import Data.Function
   import Data.Time.Clock
   import Data.Time.Format
+  import Data.List
   import System.Locale
   import Data.Functor
+  import Control.Monad
+  import System.Directory
 
   lenVec3 x y z = sqrt (x ^ 2 + y ^ 2 + z ^ 2)
 
@@ -362,11 +365,11 @@ module Tasks where
   instance Functor Point3D where
       fmap f (Point3D a b c) = Point3D (f a) (f b) (f c)
 
-  data Tree a = Leaf (Maybe a) | Branch (Tree a) (Maybe a) (Tree a) deriving Show
+  --data Tree a = Leaf (Maybe a) | Branch (Tree a) (Maybe a) (Tree a) deriving Show
 
-  instance Functor Tree where
-      fmap f (Leaf a)       = Leaf (f <$> a)
-      fmap f (Branch l x r) = Branch (f <$> l) (f <$> x) (f <$> r)
+  --instance Functor Tree where
+  --    fmap f (Leaf a)       = Leaf (f <$> a)
+  --    fmap f (Branch l x r) = Branch (f <$> l) (f <$> x) (f <$> r)
 
   data Entry k1 k2 v = Entry (k1, k2) v  deriving Show
   data Map k1 k2 v = Map [Entry k1 k2 v]  deriving Show
@@ -431,4 +434,63 @@ module Tasks where
     name <- getLine
     if name == "" then main' else putStrLn $ "Hi, " ++ name ++ "!"
 
+  main'' :: IO ()
+  main'' = do
+      putStr "Substring: "
+      substr <- getLine
+      if substr == "" then putStrLn $ "Canceled" else
+          do
+          x <- getDirectoryContents "."
+          case filter (isInfixOf substr) (map (id) x) of
+             [] -> putStr $ ""
+             xs -> let
+                    removePrint []      = putStr $ ""
+                    removePrint (x:xs)  = do
+                                          removeFile x
+                                          putStrLn $ "Removing file: " ++ x
+                                          removePrint xs
+                   in (removePrint xs)
+
+  data Tree a = Leaf a | Node (Tree a) (Tree a)
+
+  height :: Tree a -> Int
+  height (Leaf x) = 0
+  height (Node l r) = 1 + max (height l) (height r)
+
+  size :: Tree a -> Int
+  size (Leaf x) = 1
+  size (Node l r) = 1 + size l + size r
+
+  avg' :: Tree Int -> Int
+  avg' t =
+      let (c,s) = go t
+      in s `div` c
+    where
+      go :: Tree Int -> (Int,Int)
+      go x = (countLeaf x, sumLeaf x)
+      countLeaf (Node l r) = countLeaf l + countLeaf r
+      countLeaf (Leaf _) = 1
+      sumLeaf (Node l r) = sumLeaf l + sumLeaf r
+      sumLeaf (Leaf x) = x
+
+  rotations :: [a] -> [[a]]
+  rotations xs = take (length xs) (iterate (\(y:ys) -> ys ++ [y]) xs)
+
+  perms :: [a] -> [[a]]
+  perms []     = [[]]
+  perms (x:xs) = concatMap (rotations.(x:)) (perms xs)
+
+  type User = String
+  type Password = String
+  type UsersTable = [(User, Password)]
+
+  data Reader r a = Reader { runReader :: (r -> a) }
+
+  instance Monad (Reader r) where
+    return x = Reader $ \_ -> x
+    m >>= k  = Reader $ \r -> runReader (k (runReader m r)) r
+
+  revRange :: (Char,Char) -> [Char]
+  revRange p = unfoldr g (snd p)
+    where g = \x -> if (x < fst p) then Nothing else Just(x, pred x)
 
